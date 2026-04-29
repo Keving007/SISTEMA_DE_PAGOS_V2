@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso - Control de Pagos</title>
+    <style>
+        :root { --primary: #2563eb; --success: #10b981; --bg: #f8fafc; --text: #1e293b; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h1 { color: var(--primary); text-align: center; margin-bottom: 25px; }
+        input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .link-btn { color: var(--primary); cursor: pointer; font-weight: bold; text-decoration: underline; display: block; text-align: center; margin-top: 15px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="view-login">
+            <h1>Bienvenido</h1>
+            <input type="email" id="login-email" placeholder="Correo electrónico">
+            <input type="password" id="login-pass" placeholder="Contraseña">
+            <button class="btn-primary" onclick="login()">Entrar</button>
+            <span class="link-btn" onclick="toggleView(true)">¿No tienes cuenta? Regístrate</span>
+        </div>
+
+        <div id="view-register" style="display: none;">
+            <h1>Crear Cuenta</h1>
+            <input type="email" id="reg-email" placeholder="Tu correo">
+            <input type="password" id="reg-pass" placeholder="Tu contraseña (mín. 6)">
+            <button class="btn-primary" style="background: var(--success);" onclick="registro()">Registrarme</button>
+            <span class="link-btn" onclick="toggleView(false)">Ya tengo cuenta, volver</span>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+    <script>
+        function toggleView(showRegister) {
+            document.getElementById('view-login').style.display = showRegister ? 'none' : 'block';
+            document.getElementById('view-register').style.display = showRegister ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>

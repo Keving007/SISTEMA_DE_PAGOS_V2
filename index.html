@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Registros - Pagos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2563eb; --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+            --bg: #f8fafc; --text: #1e293b;
+            --card-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; }
+        .container { max-width: 850px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: var(--card-shadow); margin-bottom: 25px; }
+
+        /* Notificaciones (Toasts) */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+        .toast { 
+            background: white; padding: 15px 25px; border-radius: 10px; margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px;
+            transform: translateX(120%); transition: 0.3s; border-left: 5px solid var(--primary);
+        }
+        .toast.show { transform: translateX(0); }
+        .toast.success { border-left-color: var(--success); }
+        .toast.danger { border-left-color: var(--danger); }
+
+        /* Modal de Edición */
+        .modal { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 90%; max-width: 500px; position: relative; }
+        .close-modal { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 1.5rem; color: #64748b; }
+
+        /* Estilos de Formulario y Tabla */
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 5px; color: #64748b; text-transform: uppercase; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 0.9rem; }
+        
+        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+        button { border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-add { background: var(--primary); color: white; flex: 2; }
+        .btn-print { background: #475569; color: white; flex: 1; }
+        .btn-save { background: var(--success); color: white; width: 100%; margin-top: 15px; }
+
+        /* Totales */
+        .total-box-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .total-card { padding: 15px; border-radius: 12px; text-align: center; border: 1px solid; }
+        .card-hours { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+        .card-money { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+        .total-value { font-size: 1.4rem; font-weight: 900; display: block; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { background: #f8fafc; text-align: left; padding: 12px; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+        
+        .action-btns { display: flex; gap: 8px; justify-content: center; }
+        .btn-icon { background: none; border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; width: 32px; height: 32px; color: #64748b; }
+        .btn-icon:hover { background: #f1f5f9; color: var(--primary); }
+        .btn-delete:hover { color: var(--danger); background: #fff1f2; }
+
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div class="container">
+    <div id="view-carpetas" class="no-print">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2><i class="fas fa-folder-open" style="color: var(--warning);"></i> Mis Carpetas</h2>
+                <button onclick="cerrarSesion()" style="color: var(--danger); background: none;">Cerrar Sesión</button>
+            </div>
+            <p id="user-email" style="font-size: 0.8rem; color: #64748b;"></p>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <input type="text" id="nombre-mes" placeholder="Ej: Mayo 2026">
+                <button onclick="crearCarpeta()" style="background: var(--success); color: white;">Crear</button>
+            </div>
+            <div id="lista-carpetas" style="margin-top: 20px; display: grid; gap: 10px;"></div>
+        </div>
+    </div>
+
+    <div id="view-calculadora" style="display: none;">
+        <button onclick="regresarACarpetas()" class="no-print" style="background: none; color: var(--primary); font-weight: bold; margin-bottom: 15px;">
+            <i class="fas fa-arrow-left"></i> Volver a Carpetas
+        </button>
+
+        <div class="card no-print">
+            <h1 id="titulo-carpeta" style="margin-bottom: 20px; font-size: 1.5rem; text-align: center; color: var(--primary);"></h1>
+            <div class="grid-3">
+                <div><label>Fecha:</label><input type="date" id="fecha"></div>
+                <div><label>Valor Hora ($):</label><input type="number" id="valor-hora-config" value="3.00" step="0.01"></div>
+                <div><label>Entrada:</label><input type="time" id="entrada" value="12:30"></div>
+            </div>
+            <div class="grid-3">
+                <div><label>Salida:</label><input type="time" id="salida" value="17:00"></div>
+                <div><label>Adicional ($):</label><input type="number" id="adicional" placeholder="0.00"></div>
+                <div><label>Descuento ($):</label><input type="number" id="descuento" placeholder="0.00"></div>
+            </div>
+            <textarea id="nota" rows="1" placeholder="Notas..."></textarea>
+            <div class="btn-group">
+                <button class="btn-add" onclick="guardarRegistro()"><i class="fas fa-save"></i> Guardar Jornada</button>
+                <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="total-box-container">
+                <div class="total-card card-hours">
+                    <span style="font-size: 0.7rem; font-weight: bold;">HORAS TOTALES</span>
+                    <span id="totalHorasAcumuladas" class="total-value">0h 0m</span>
+                </div>
+                <div class="total-card card-money">
+                    <span style="font-size: 0.7rem; font-weight: bold;">NETO A RECIBIR</span>
+                    <span id="totalAcumulado" class="total-value">$0.00</span>
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha / Turno</th>
+                            <th>Tiempo</th>
+                            <th>Base</th>
+                            <th>Ajustes</th>
+                            <th>Total</th>
+                            <th class="no-print" style="text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTabla"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalEditar" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="cerrarModal()">&times;</span>
+        <h3 style="margin-top: 0; color: var(--primary);"><i class="fas fa-edit"></i> Editar Jornada</h3>
+        <input type="hidden" id="edit-id">
+        <div style="display: grid; gap: 15px; margin-top: 20px;">
+            <div><label>Fecha:</label><input type="date" id="edit-fecha"></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div><label>Entrada:</label><input type="time" id="edit-entrada"></div>
+                <div><label>Salida:</label><input type="time" id="edit-salida"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div><label>Adicional ($):</label><input type="number" id="edit-adicional" step="0.01"></div>
+                <div><label>Descuento ($):</label><input type="number" id="edit-descuento" step="0.01"></div>
+            </div>
+            <div><label>Valor Hora ($):</label><input type="number" id="edit-valorHora" step="0.01"></div>
+            <div><label>Nota:</label><textarea id="edit-nota" rows="2"></textarea></div>
+        </div>
+        <button class="btn-save" onclick="actualizarRegistro()"><i class="fas fa-check"></i> Guardar Cambios</button>
+    </div>
+</div>
+
+<div id="modalEditarCarpeta" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <span class="close-modal" onclick="cerrarModalCarpeta()">&times;</span>
+        <h3 style="margin-top: 0; color: var(--primary);"><i class="fas fa-edit"></i> Editar Carpeta</h3>
+        <input type="hidden" id="edit-carpeta-id">
+        <div style="margin-top: 20px;">
+            <label>Nuevo Nombre:</label>
+            <input type="text" id="edit-carpeta-nombre">
+        </div>
+        <button class="btn-save" onclick="actualizarCarpeta()">Guardar Cambios</button>
+    </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
