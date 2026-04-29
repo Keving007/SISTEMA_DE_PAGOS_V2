@@ -54,7 +54,15 @@ window.registro = async () => {
     } catch (e) { alert("Error: " + e.message); }
 };
 
-window.cerrarSesion = () => signOut(auth);
+window.cerrarSesion = async () => {
+    try {
+        await signOut(auth);
+        // Forzamos la redirección al login tras cerrar sesión
+        window.location.replace("login.html");
+    } catch (e) {
+        console.error("Error al cerrar sesión:", e);
+    }
+};
 
 // --- GESTIÓN DE CARPETAS ---
 window.crearCarpeta = async () => {
@@ -308,20 +316,25 @@ window.eliminarRegistro = async (id) => {
 };
 
 // --- OBSERVADOR (CORREGIDO PARA EVITAR BUCLES) ---
+// Reemplaza tu onAuthStateChanged por este en app.js
 onAuthStateChanged(auth, (user) => {
     const path = window.location.pathname;
-    const isLoginPag = path.includes("login.html") || path.endsWith("/");
+    // Verificamos si estamos en login buscando la palabra en la URL
+    const enLogin = path.includes("login.html");
 
     if (user) {
-        if (isLoginPag) {
+        // Si hay usuario y estoy en login, voy a index
+        if (enLogin) {
             window.location.replace("index.html");
         }
+        // Actualizamos UI y cargamos datos
         if (document.getElementById('user-email')) {
             document.getElementById('user-email').innerText = user.email;
             cargarCarpetas();
         }
     } else {
-        if (path.includes("index.html")) {
+        // Si NO hay usuario y NO estoy en login, mando a login
+        if (!enLogin) {
             window.location.replace("login.html");
         }
     }
