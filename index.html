@@ -36,7 +36,14 @@
         .close-modal { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 1.5rem; color: #64748b; }
 
         /* Estilos de Formulario y Tabla */
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px; }
+        /* Reemplaza el .grid-3 anterior por este */
+        .grid-3 { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+            gap: 15px; 
+            margin-bottom: 15px; 
+        }
+
         label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 5px; color: #64748b; text-transform: uppercase; }
         input, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 0.9rem; }
         
@@ -63,6 +70,45 @@
         .btn-delete:hover { color: var(--danger); background: #fff1f2; }
 
         @media print { .no-print { display: none !important; } }
+
+        /* Añade esto al final de tus estilos para arreglar la vista móvil */
+        @media (max-width: 600px) {
+        body { padding: 10px; }
+        .card { padding: 15px; }
+    
+        .grid-3 { 
+        grid-template-columns: 1fr 1fr; /* Dos columnas en móvil para que no sea eterno el scroll */
+    }
+    
+    /* Para que la fecha y notas ocupen todo el ancho en móvil */
+    #fecha, #nota, .btn-group { 
+        grid-column: span 2; 
+    }
+
+    h1 { font-size: 1.2rem !important; }
+    
+    table { font-size: 0.75rem; }
+    th, td { padding: 8px 4px; }
+    
+    .total-box-container {
+        grid-template-columns: 1fr; /* Totales uno sobre otro en móvil */
+    }
+}
+
+label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.7rem;
+}
+
+input[type="time"], input[type="date"] {
+    appearance: none; /* Mejora la apariencia en iPhone/Android */
+    -webkit-appearance: none;
+    min-height: 40px;
+}
+
+
     </style>
 </head>
 <body>
