@@ -13,11 +13,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+export const db = getFirestore(app);
 
-let carpetaIdActual = null;
+window.carpetaIdActual = null;
 
-// --- SISTEMA DE NOTIFICACIONES ---
 function notify(mensaje, tipo = "success") {
     const container = document.getElementById('toast-container');
     if(!container) return;
@@ -33,7 +32,6 @@ function notify(mensaje, tipo = "success") {
     }, 3000);
 }
 
-// --- LÓGICA DE ACCESO (CORREGIDA) ---
 window.login = async () => {
     const email = document.getElementById('login-email').value;
     const pass = document.getElementById('login-pass').value;
@@ -57,26 +55,20 @@ window.registro = async () => {
 window.cerrarSesion = async () => {
     try {
         await signOut(auth);
-        // Forzamos la redirección al login tras cerrar sesión
         window.location.replace("login.html");
-    } catch (e) {
-        console.error("Error al cerrar sesión:", e);
-    }
+    } catch (e) { console.error("Error al cerrar sesión:", e); }
 };
 
-// --- GESTIÓN DE CARPETAS ---
 window.crearCarpeta = async () => {
     const nombre = document.getElementById('nombre-mes').value;
     if (!nombre) return notify("Escribe un nombre", "danger");
     try {
-        await addDoc(collection(db, "carpetas"), { nombre, uid: auth.currentUser.uid, fecha: new Date() });
+        await addDoc(collection(db, "carpetas"), { nombre, uid: auth.currentUser.uid, fecha: new Date().toISOString() });
         document.getElementById('nombre-mes').value = "";
         notify("Carpeta creada correctamente");
         cargarCarpetas();
     } catch (e) { notify(e.message, "danger"); }
 };
-
-// --- GESTIÓN DE CARPETAS MEJORADA ---
 
 window.cargarCarpetas = async () => {
     const lista = document.getElementById('lista-carpetas');
@@ -101,6 +93,9 @@ window.cargarCarpetas = async () => {
                     <span style="font-weight: bold;">${data.nombre}</span>
                 </div>
                 <div style="display: flex; gap: 8px;">
+                    <button class="btn-icon" title="Ver Estadísticas" onclick="window.abrirEstadisticas('${id}', '${data.nombre}')" style="background-color: #e0f2fe; color: #0369a1; border-color: #bae6fd;">
+                        <i class="fas fa-chart-bar"></i>
+                    </button>
                     <button class="btn-icon" title="Editar Nombre" onclick="abrirModalCarpeta('${id}', '${data.nombre}')">
                         <i class="fas fa-pencil-alt"></i>
                     </button>
@@ -114,7 +109,6 @@ window.cargarCarpetas = async () => {
     } catch (e) { notify("Error al cargar: " + e.message, "danger"); }
 };
 
-// --- FUNCIONES PARA EDITAR CARPETA ---
 window.abrirModalCarpeta = (id, nombre) => {
     document.getElementById('edit-carpeta-id').value = id;
     document.getElementById('edit-carpeta-nombre').value = nombre;
@@ -126,70 +120,60 @@ window.cerrarModalCarpeta = () => {
 };
 
 window.actualizarCarpeta = async () => {
-    // Corregido: Usamos 'edit-carpeta-id' que es el que está en el HTML
     const id = document.getElementById('edit-carpeta-id').value;
     const nuevoNombre = document.getElementById('edit-carpeta-nombre').value;
-    
-    if(!nuevoNombre) {
-        return notify("El nombre no puede estar vacío", "danger");
-    }
+    if(!nuevoNombre) return notify("El nombre no puede estar vacío", "danger");
 
     try {
-        await updateDoc(doc(db, "carpetas", id), { 
-            nombre: nuevoNombre 
-        });
-        
+        await updateDoc(doc(db, "carpetas", id), { nombre: nuevoNombre });
         notify("Nombre actualizado");
         cerrarModalCarpeta();
-        cargarCarpetas(); // Recarga la lista para ver el cambio
-    } catch (e) { 
-        console.error(e);
-        notify("Error al actualizar: " + e.message, "danger"); 
-    }
+        cargarCarpetas();
+    } catch (e) { notify("Error: " + e.message, "danger"); }
 };
 
-// --- ELIMINAR CARPETA Y SUS JORNADAS (CASCADA) ---
 window.eliminarCarpetaCompleta = async (id, nombre) => {
     const confirmacion = confirm(`¿ESTÁS SEGURO? \nSe borrará la carpeta "${nombre}" y TODAS las jornadas registradas en ella. Esta acción no se puede deshacer.`);
-    
     if (!confirmacion) return;
 
     try {
-        // 1. Obtener y borrar todas las jornadas dentro de la carpeta
         const jornadasRef = collection(db, "carpetas", id, "jornadas");
         const jornadasSnap = await getDocs(jornadasRef);
-        
         const promesasBorrado = jornadasSnap.docs.map(jDoc => deleteDoc(doc(db, "carpetas", id, "jornadas", jDoc.id)));
         await Promise.all(promesasBorrado);
 
-        // 2. Borrar la carpeta principal
         await deleteDoc(doc(db, "carpetas", id));
-        
         notify("Carpeta y registros eliminados", "danger");
         cargarCarpetas();
     } catch (e) { notify("Error al eliminar: " + e.message, "danger"); }
 };
 
 window.abrirCarpeta = (id, nombre) => {
-    carpetaIdActual = id;
+    window.carpetaIdActual = id;
     document.getElementById('view-carpetas').style.display = 'none';
     document.getElementById('view-calculadora').style.display = 'block';
-    document.getElementById('titulo-carpeta').innerText = nombre;
+    document.getElementById('titulo-carpeta').innerText = nombre.toUpperCase();
+    
+    const hoy = new Date();
+    const offset = hoy.getTimezoneOffset();
+    const hoyLocal = new Date(hoy.getTime() - (offset * 60 * 1000));
+    document.getElementById('fecha').value = hoyLocal.toISOString().split('T')[0];
+    
     renderizarJornadas();
 };
 
 window.regresarACarpetas = () => {
+    window.carpetaIdActual = null;
     document.getElementById('view-carpetas').style.display = 'block';
     document.getElementById('view-calculadora').style.display = 'none';
     cargarCarpetas();
 };
 
-// --- GESTIÓN DE JORNADAS ---
 window.guardarRegistro = async () => {
     const fecha = document.getElementById('fecha').value;
     const entrada = document.getElementById('entrada').value;
     const salida = document.getElementById('salida').value;
-    const valorHora = parseFloat(document.getElementById('valor-hora-config').value);
+    const valorHora = parseFloat(document.getElementById('valor-hora-config').value) || 0;
     const adi = parseFloat(document.getElementById('adicional').value) || 0;
     const desc = parseFloat(document.getElementById('descuento').value) || 0;
     const nota = document.getElementById('nota').value;
@@ -198,9 +182,7 @@ window.guardarRegistro = async () => {
 
     let [h1, m1] = entrada.split(':').map(Number);
     let [h2, m2] = salida.split(':').map(Number);
-    let min1 = h1 * 60 + m1;
-    let min2 = h2 * 60 + m2;
-    let diff = min2 - min1;
+    let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
     if (diff < 0) diff += 1440;
 
     const pagoBase = (diff / 60) * valorHora;
@@ -208,11 +190,14 @@ window.guardarRegistro = async () => {
     const tiempoTexto = `${Math.floor(diff / 60)}h ${diff % 60}m`;
 
     try {
-        await addDoc(collection(db, "carpetas", carpetaIdActual, "jornadas"), {
+        await addDoc(collection(db, "carpetas", window.carpetaIdActual, "jornadas"), {
             fecha, entrada, salida, valorHora, adicional: adi, descuento: desc, nota,
-            totalDia, tiempoTexto, minutos: diff, pagoBase: pagoBase.toFixed(2), creado: new Date()
+            totalDia, tiempoTexto, minutos: diff, pagoBase: pagoBase.toFixed(2), creado: new Date().toISOString()
         });
         notify("Jornada guardada");
+        document.getElementById('adicional').value = "";
+        document.getElementById('descuento').value = "";
+        document.getElementById('nota').value = "";
         renderizarJornadas();
     } catch (e) { notify(e.message, "danger"); }
 };
@@ -222,55 +207,58 @@ window.renderizarJornadas = async () => {
     if(!cuerpo) return;
     cuerpo.innerHTML = '<tr><td colspan="6" style="text-align:center">Cargando...</td></tr>';
     
-    const q = query(collection(db, "carpetas", carpetaIdActual, "jornadas"), orderBy("fecha", "desc"));
-    const snapshot = await getDocs(q);
-    cuerpo.innerHTML = "";
-    
-    let totalD = 0, totalM = 0;
-
-    snapshot.forEach(docSnap => {
-        const r = docSnap.data();
-        totalD += parseFloat(r.totalDia);
-        totalM += r.minutos;
+    try {
+        const q = query(collection(db, "carpetas", window.carpetaIdActual, "jornadas"), orderBy("fecha", "desc"));
+        const snapshot = await getDocs(q);
+        cuerpo.innerHTML = "";
         
-        let ajustes = "";
-        if(r.adicional > 0) ajustes += `<span style="color:var(--success); font-weight:bold;">+$${r.adicional}</span> `;
-        if(r.descuento > 0) ajustes += `<span style="color:var(--danger); font-weight:bold;">-$${r.descuento}</span>`;
+        let totalD = 0, totalM = 0;
 
-        cuerpo.innerHTML += `
-            <tr>
-                <td><b>${r.fecha}</b><br><small>${r.entrada} - ${r.salida}</small></td>
-                <td>${r.tiempoTexto}</td>
-                <td>$${r.pagoBase} <small>($${r.valorHora}/h)</small></td>
-                <td>${ajustes}<br><small style="color:#64748b">${r.nota || ''}</small></td>
-                <td style="color:var(--primary); font-weight:900;">$${r.totalDia}</td>
-                <td class="no-print action-btns">
-                    <button class="btn-icon" onclick="abrirModalEditar('${docSnap.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="btn-icon btn-delete" onclick="eliminarRegistro('${docSnap.id}')"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>`;
-    });
+        snapshot.forEach(docSnap => {
+            const r = docSnap.data();
+            totalD += parseFloat(r.totalDia) || 0;
+            totalM += parseInt(r.minutos) || 0;
+            
+            let ajustes = "";
+            if(r.adicional > 0) ajustes += `<span style="color:var(--success); font-weight:bold;">+$${r.adicional}</span> `;
+            if(r.descuento > 0) ajustes += `<span style="color:var(--danger); font-weight:bold;">-$${r.descuento}</span>`;
 
-    document.getElementById('totalHorasAcumuladas').innerText = `${Math.floor(totalM / 60)}h ${totalM % 60}m`;
-    document.getElementById('totalAcumulado').innerText = `$${totalD.toFixed(2)}`;
+            cuerpo.innerHTML += `
+                <tr>
+                    <td><b>${r.fecha}</b><br><small>${r.entrada} - ${r.salida}</small></td>
+                    <td>${r.tiempoTexto}</td>
+                    <td>$${parseFloat(r.pagoBase).toFixed(2)} <small>($${parseFloat(r.valorHora).toFixed(2)}/h)</small></td>
+                    <td>${ajustes}<br><small style="color:#64748b">${r.nota || ''}</small></td>
+                    <td style="color:var(--primary); font-weight:900;">$${r.totalDia}</td>
+                    <td class="no-print action-btns">
+                        <button class="btn-icon" onclick="abrirModalEditar('${docSnap.id}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn-icon btn-delete" onclick="eliminarRegistro('${docSnap.id}')"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`;
+        });
+
+        document.getElementById('totalHorasAcumuladas').innerText = `${Math.floor(totalM / 60)}h ${totalM % 60}m`;
+        document.getElementById('totalAcumulado').innerText = `$${totalD.toFixed(2)}`;
+    } catch(e) { notify("Error al renderizar: " + e.message, "danger"); }
 };
 
-// --- MODAL Y EDICIÓN ---
 window.abrirModalEditar = async (id) => {
-    const docRef = doc(db, "carpetas", carpetaIdActual, "jornadas", id);
-    const docSnap = await getDoc(docRef);
-    const data = docSnap.data();
+    try {
+        const docRef = doc(db, "carpetas", window.carpetaIdActual, "jornadas", id);
+        const docSnap = await getDoc(docRef);
+        const data = docSnap.data();
 
-    document.getElementById('edit-id').value = id;
-    document.getElementById('edit-fecha').value = data.fecha;
-    document.getElementById('edit-entrada').value = data.entrada;
-    document.getElementById('edit-salida').value = data.salida;
-    document.getElementById('edit-adicional').value = data.adicional;
-    document.getElementById('edit-descuento').value = data.descuento;
-    document.getElementById('edit-valorHora').value = data.valorHora;
-    document.getElementById('edit-nota').value = data.nota;
+        document.getElementById('edit-id').value = id;
+        document.getElementById('edit-fecha').value = data.fecha;
+        document.getElementById('edit-entrada').value = data.entrada;
+        document.getElementById('edit-salida').value = data.salida;
+        document.getElementById('edit-adicional').value = data.adicional;
+        document.getElementById('edit-descuento').value = data.descuento;
+        document.getElementById('edit-valorHora').value = data.valorHora;
+        document.getElementById('edit-nota').value = data.nota || "";
 
-    document.getElementById('modalEditar').style.display = 'flex';
+        document.getElementById('modalEditar').style.display = 'flex';
+    } catch(e) { notify(e.message, "danger"); }
 };
 
 window.cerrarModal = () => document.getElementById('modalEditar').style.display = 'none';
@@ -280,23 +268,21 @@ window.actualizarRegistro = async () => {
     const fecha = document.getElementById('edit-fecha').value;
     const entrada = document.getElementById('edit-entrada').value;
     const salida = document.getElementById('edit-salida').value;
-    const valorHora = parseFloat(document.getElementById('edit-valorHora').value);
+    const valorHora = parseFloat(document.getElementById('edit-valorHora').value) || 0;
     const adi = parseFloat(document.getElementById('edit-adicional').value) || 0;
     const desc = parseFloat(document.getElementById('edit-descuento').value) || 0;
     const nota = document.getElementById('edit-nota').value;
 
     let [h1, m1] = entrada.split(':').map(Number);
     let [h2, m2] = salida.split(':').map(Number);
-    let min1 = h1 * 60 + m1;
-    let min2 = h2 * 60 + m2;
-    let diff = min2 - min1;
+    let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
     if (diff < 0) diff += 1440;
 
     const pagoBase = (diff / 60) * valorHora;
     const totalDia = (pagoBase + adi - desc).toFixed(2);
 
     try {
-        await updateDoc(doc(db, "carpetas", carpetaIdActual, "jornadas", id), {
+        await updateDoc(doc(db, "carpetas", window.carpetaIdActual, "jornadas", id), {
             fecha, entrada, salida, valorHora, adicional: adi, descuento: desc, nota,
             totalDia, tiempoTexto: `${Math.floor(diff / 60)}h ${diff % 60}m`, minutos: diff, pagoBase: pagoBase.toFixed(2)
         });
@@ -309,33 +295,22 @@ window.actualizarRegistro = async () => {
 window.eliminarRegistro = async (id) => {
     if (!confirm("¿Eliminar jornada?")) return;
     try {
-        await deleteDoc(doc(db, "carpetas", carpetaIdActual, "jornadas", id));
+        await deleteDoc(doc(db, "carpetas", window.carpetaIdActual, "jornadas", id));
         notify("Registro eliminado", "danger");
         renderizarJornadas();
     } catch (e) { notify(e.message, "danger"); }
 };
 
-// --- OBSERVADOR (CORREGIDO PARA EVITAR BUCLES) ---
-// Reemplaza tu onAuthStateChanged por este en app.js
 onAuthStateChanged(auth, (user) => {
     const path = window.location.pathname;
-    // Verificamos si estamos en login buscando la palabra en la URL
     const enLogin = path.includes("login.html");
-
     if (user) {
-        // Si hay usuario y estoy en login, voy a index
-        if (enLogin) {
-            window.location.replace("index.html");
-        }
-        // Actualizamos UI y cargamos datos
+        if (enLogin) window.location.replace("index.html");
         if (document.getElementById('user-email')) {
             document.getElementById('user-email').innerText = user.email;
             cargarCarpetas();
         }
     } else {
-        // Si NO hay usuario y NO estoy en login, mando a login
-        if (!enLogin) {
-            window.location.replace("login.html");
-        }
+        if (!enLogin) window.location.replace("login.html");
     }
 });

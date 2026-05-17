@@ -16,7 +16,6 @@
         .container { max-width: 850px; margin: 0 auto; }
         .card { background: white; padding: 25px; border-radius: 16px; box-shadow: var(--card-shadow); margin-bottom: 25px; }
 
-        /* Notificaciones (Toasts) */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
         .toast { 
             background: white; padding: 15px 25px; border-radius: 10px; margin-bottom: 10px;
@@ -27,7 +26,6 @@
         .toast.success { border-left-color: var(--success); }
         .toast.danger { border-left-color: var(--danger); }
 
-        /* Modal de Edición */
         .modal { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000;
@@ -35,8 +33,6 @@
         .modal-content { background: white; padding: 30px; border-radius: 16px; width: 90%; max-width: 500px; position: relative; }
         .close-modal { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 1.5rem; color: #64748b; }
 
-        /* Estilos de Formulario y Tabla */
-        /* Reemplaza el .grid-3 anterior por este */
         .grid-3 { 
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
@@ -44,7 +40,7 @@
             margin-bottom: 15px; 
         }
 
-        label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 5px; color: #64748b; text-transform: uppercase; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 5px; color: #64748b; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         input, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 0.9rem; }
         
         .btn-group { display: flex; gap: 12px; margin-top: 20px; }
@@ -53,7 +49,6 @@
         .btn-print { background: #475569; color: white; flex: 1; }
         .btn-save { background: var(--success); color: white; width: 100%; margin-top: 15px; }
 
-        /* Totales */
         .total-box-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         .total-card { padding: 15px; border-radius: 12px; text-align: center; border: 1px solid; }
         .card-hours { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
@@ -71,45 +66,20 @@
 
         @media print { .no-print { display: none !important; } }
 
-        /* Añade esto al final de tus estilos para arreglar la vista móvil */
         @media (max-width: 600px) {
-        body { padding: 10px; }
-        .card { padding: 15px; }
-    
-        .grid-3 { 
-        grid-template-columns: 1fr 1fr; /* Dos columnas en móvil para que no sea eterno el scroll */
-    }
-    
-    /* Para que la fecha y notas ocupen todo el ancho en móvil */
-    #fecha, #nota, .btn-group { 
-        grid-column: span 2; 
-    }
+            body { padding: 10px; }
+            .card { padding: 15px; }
+            .grid-3 { grid-template-columns: 1fr 1fr; }
+            #fecha, #nota, .btn-group { grid-column: span 2; }
+            h1 { font-size: 1.2rem !important; }
+            table { font-size: 0.75rem; }
+            th, td { padding: 8px 4px; }
+            .total-box-container { grid-template-columns: 1fr; }
+        }
 
-    h1 { font-size: 1.2rem !important; }
-    
-    table { font-size: 0.75rem; }
-    th, td { padding: 8px 4px; }
-    
-    .total-box-container {
-        grid-template-columns: 1fr; /* Totales uno sobre otro en móvil */
-    }
-}
-
-label {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 0.7rem;
-}
-
-input[type="time"], input[type="date"] {
-    appearance: none; /* Mejora la apariencia en iPhone/Android */
-    -webkit-appearance: none;
-    min-height: 40px;
-}
-
-
+        input[type="time"], input[type="date"] { appearance: none; -webkit-appearance: none; min-height: 40px; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -148,7 +118,7 @@ input[type="time"], input[type="date"] {
                 <div><label>Adicional ($):</label><input type="number" id="adicional" placeholder="0.00"></div>
                 <div><label>Descuento ($):</label><input type="number" id="descuento" placeholder="0.00"></div>
             </div>
-            <textarea id="nota" rows="1" placeholder="Notas..."></textarea>
+            <textarea id="nota" rows="1" placeholder="Notes..."></textarea>
             <div class="btn-group">
                 <button class="btn-add" onclick="guardarRegistro()"><i class="fas fa-save"></i> Guardar Jornada</button>
                 <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
@@ -181,6 +151,56 @@ input[type="time"], input[type="date"] {
                     <tbody id="cuerpoTabla"></tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <div id="view-estadisticas" style="display: none; margin-bottom: 25px;">
+        <button onclick="regresarACarpetasDesdeStats()" class="no-print" style="background: none; color: var(--primary); font-weight: bold; margin-bottom: 20px;">
+            <i class="fas fa-arrow-left"></i> Volver a Carpetas
+        </button>
+        
+        <h1 id="titulo-stats-carpeta" style="margin-bottom: 25px; font-size: 1.5rem; text-align: center; color: var(--primary);"></h1>
+
+        <div class="grid-3" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div class="card" style="margin: 0; padding: 15px; border-left: 5px solid var(--success); text-align: center;">
+                <p style="margin: 0; font-size: 0.7rem; color: #64748b; font-weight: bold;">SUELDO NETO</p>
+                <h3 id="dash-neto" style="margin: 5px 0 0 0; color: var(--text); font-size: 1.4rem;">$0.00</h3>
+            </div>
+            <div class="card" style="margin: 0; padding: 15px; border-left: 5px solid var(--primary); text-align: center;">
+                <p style="margin: 0; font-size: 0.7rem; color: #64748b; font-weight: bold;">HORAS TOTALES</p>
+                <h3 id="dash-horas" style="margin: 5px 0 0 0; color: var(--text); font-size: 1.4rem;">0h 0m</h3>
+            </div>
+            <div class="card" style="margin: 0; padding: 15px; border-left: 5px solid #06b6d4; text-align: center;">
+                <p style="margin: 0; font-size: 0.7rem; color: #64748b; font-weight: bold;">DÍAS TRABAJADOS</p>
+                <h3 id="dash-asistencias" style="margin: 5px 0 0 0; color: #06b6d4; font-size: 1.4rem;">0 días</h3>
+            </div>
+            <div class="card" style="margin: 0; padding: 15px; border-left: 5px solid var(--warning); text-align: center;">
+                <p style="margin: 0; font-size: 0.7rem; color: #64748b; font-weight: bold;">DÍA TOP</p>
+                <h3 id="dash-dia-top" style="margin: 5px 0 0 0; color: var(--text); font-size: 1rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">--</h3>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 20px;">
+            <h4 style="margin: 0 0 15px 0; color: var(--primary);"><i class="fas fa-chart-line"></i> Evolución de Ingresos Diario</h4>
+            <div style="position: relative; height:250px; width:100%">
+                <canvas id="graficoLineas"></canvas>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 25px; overflow-x: auto;">
+            <h3 style="margin-top: 0; color: var(--primary); font-size: 1.1rem;">
+                <i class="fas fa-calendar-week"></i> DESGLOSE DE HORAS POR SEMANA
+            </h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.95rem; min-width: 500px;">
+                <thead>
+                    <tr style="background: #f1f5f9; text-align: left; color: #475569;">
+                        <th style="padding: 12px; border-bottom: 2px solid #e2e8f0;">Semana / Período</th>
+                        <th style="padding: 12px; border-bottom: 2px solid #e2e8f0;">Horas Totales</th>
+                        <th style="padding: 12px; border-bottom: 2px solid #e2e8f0;">Ganancia Total</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-semanas-cuerpo"></tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -221,5 +241,6 @@ input[type="time"], input[type="date"] {
 </div>
 
 <script type="module" src="app.js"></script>
+<script type="module" src="dashboard.js"></script>
 </body>
 </html>
